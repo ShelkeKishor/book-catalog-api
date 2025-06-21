@@ -1,12 +1,21 @@
-const { join } = require('path');
-const { Low } = require('lowdb');
-const { JSONFile } = require('lowdb/node');
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
+import { Memory } from 'lowdb';
 
-// Path to the database file
-const file = join(__dirname, 'db.json');
+const defaultData = { books: [] };
 
-// Configure lowdb to write to a JSON file, with default data
-const adapter = new JSONFile(file);
-const db = new Low(adapter, { books: [] });
+// Use an in-memory database for tests, and a JSON file for everything else.
+const adapter = process.env.NODE_ENV === 'test'
+  ? new Memory()
+  : new JSONFile('db.json');
 
-module.exports = db;
+export const db = new Low(adapter, defaultData);
+
+/**
+ * Initializes the database by reading from the adapter and writing initial data if empty.
+ */
+export const initDatabase = async () => {
+  await db.read();
+  db.data = db.data || defaultData;
+  await db.write();
+};
