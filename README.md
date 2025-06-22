@@ -47,7 +47,7 @@ Make sure you have [Node.js](https://nodejs.org/en/download/) (version 14 or lat
 
 1.  **Clone the Repository**
     ```bash
-    git clone https://github.com/your-username/your-repository.git
+    git clone https://github.com/Kishor018/book-catalog-api.git
     ```
 2.  **Navigate to the Backend Directory**
     ```bash
