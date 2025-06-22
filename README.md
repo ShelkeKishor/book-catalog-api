@@ -51,7 +51,7 @@ Make sure you have [Node.js](https://nodejs.org/en/download/) (version 14 or lat
     ```
 2.  **Navigate to the Backend Directory**
     ```bash
-    cd your-repository/backend
+    cd book-catalog-api/backend
     ```
 3.  **Install Dependencies**
     ```bash
