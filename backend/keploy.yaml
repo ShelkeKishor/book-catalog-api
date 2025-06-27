@@ -6,10 +6,10 @@ name: book-catalog-api-tests
 spec:
   metadata:
     name: book-catalog-api
-    description: API tests for book catalog service
+    description: Comprehensive API tests for book catalog service
   
   tests:
-    - name: get-all-books
+    - name: health-check
       path: /api/books
       method: GET
       expected:
@@ -24,6 +24,8 @@ spec:
           title: "Test Book"
           author: "Test Author"
           published_year: 2024
+        headers:
+          Content-Type: application/json
       expected:
         status: 201
         contentType: application/json
@@ -49,10 +51,23 @@ spec:
           title: "Updated Test Book"
           author: "Updated Test Author"
           published_year: 2024
+        headers:
+          Content-Type: application/json
       expected:
         status: 200
         contentType: application/json
         schema: "#/components/schemas/Book"
+    
+    - name: list-books
+      path: /api/books
+      method: GET
+      expected:
+        status: 200
+        contentType: application/json
+        schema:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"
     
     - name: delete-book
       path: /api/books/{id}
@@ -61,6 +76,16 @@ spec:
         id: "{{created.id}}"
       expected:
         status: 204
+
+    - name: verify-deletion
+      path: /api/books/{id}
+      method: GET
+      pathParams:
+        id: "{{created.id}}"
+      expected:
+        status: 404
+        contentType: application/json
+        schema: "#/components/schemas/Error"
 
   assertions:
     - name: validate-book-schema
@@ -73,4 +98,36 @@ spec:
       type: schema
       spec:
         schema: "#/components/schemas/Error"
-        path: $.body 
+        path: $.body
+    
+    - name: validate-response-time
+      type: responseTime
+      spec:
+        threshold: 1000  # 1 second
+
+  components:
+    schemas:
+      Book:
+        type: object
+        required:
+          - id
+          - title
+          - author
+          - published_year
+        properties:
+          id:
+            type: string
+          title:
+            type: string
+          author:
+            type: string
+          published_year:
+            type: integer
+      
+      Error:
+        type: object
+        required:
+          - message
+        properties:
+          message:
+            type: string 

@@ -1,0 +1,124 @@
+name: API Testing with Keploy
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/keploy.yml'
+    branches: [ main, master ]
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/keploy.yml'
+    branches: [ main, master ]
+
+jobs:
+  api-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install Dependencies
+      run: |
+        npm ci
+        echo "Installing required global packages..."
+        npm install -g jest
+
+    - name: Setup Test Environment
+      run: |
+        echo "Setting up test database..."
+        echo '{"books":[]}' > db.json
+        chmod 666 db.json
+        echo "Test database created successfully"
+
+    - name: Run Unit Tests
+      env:
+        NODE_ENV: test
+      run: |
+        echo "Running unit tests..."
+        npm test
+        echo "Unit tests completed successfully"
+
+    - name: Install Keploy
+      run: |
+        echo "Installing Keploy..."
+        curl -O https://raw.githubusercontent.com/keploy/keploy/main/keploy.sh
+        chmod +x keploy.sh
+        sudo ./keploy.sh
+        echo "Keploy installation completed"
+
+    - name: Run API Tests
+      env:
+        NODE_ENV: test
+        PORT: 3000
+      run: |
+        echo "Starting API server for testing..."
+        node index.js > server.log 2>&1 &
+        SERVER_PID=$!
+
+        echo "Waiting for server to be ready..."
+        MAX_RETRIES=30
+        RETRY_COUNT=0
+        until curl -s http://localhost:3000/api/books > /dev/null; do
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "Server failed to start. Logs:"
+            cat server.log
+            exit 1
+          fi
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "Attempt $RETRY_COUNT/$MAX_RETRIES - Waiting for server..."
+          sleep 1
+        done
+        echo "Server is ready!"
+
+        echo "Running API health check..."
+        curl -v http://localhost:3000/api/books
+
+        echo "Testing book creation..."
+        curl -X POST http://localhost:3000/api/books \
+          -H "Content-Type: application/json" \
+          -d '{"title":"Test Book","author":"Test Author","published_year":2024}'
+
+        echo "Running Keploy tests..."
+        timeout 30s keploy test -c "NODE_ENV=test node index.js" --delay 5
+
+        echo "Cleaning up..."
+        kill $SERVER_PID || true
+        echo "Server logs:"
+        cat server.log
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: api-test-results
+        path: |
+          backend/coverage/
+          backend/server.log
+          backend/keploy-test-results/
+
+    - name: Check Test Results
+      if: always()
+      run: |
+        if [ -f "server.log" ]; then
+          echo "Test execution completed. Checking results..."
+          if grep -i "error" server.log; then
+            echo "Found errors in server logs"
+            exit 1
+          fi
+        else
+          echo "Server log file not found"
+          exit 1
+        fi 
