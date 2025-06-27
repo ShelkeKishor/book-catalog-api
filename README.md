@@ -2,9 +2,6 @@
 
 A simple but elegant full-stack application for managing a book collection, built with a Node.js backend and a clean, responsive vanilla JavaScript frontend.
 
-## CI/CD Pipeline Status
-![CI/CD Pipeline](https://github.com/ShelkeKishor/book-catalog-api/actions/workflows/ci.yml/badge.svg)
-
 ## Preview
 
 ![Book Catalog UI](frontend/screenshot.png)
@@ -16,8 +13,6 @@ A simple but elegant full-stack application for managing a book collection, buil
 -   **Responsive Frontend**: A clean and intuitive UI built with vanilla JavaScript, HTML, and CSS.
 -   **High Test Coverage**: The backend is thoroughly tested with Jest, achieving over 94% statement coverage.
 -   **In-Memory Testing**: Utilizes an in-memory database for tests to ensure speed and reliability without side effects.
--   **API Testing with Keploy**: Automated API testing using Keploy for comprehensive endpoint validation.
--   **CI/CD Integration**: Continuous Integration and Deployment pipeline with GitHub Actions.
 
 ## Tech Stack
 
