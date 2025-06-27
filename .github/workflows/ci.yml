@@ -7,6 +7,43 @@ on:
     branches: [ main, master ]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Debug Info
+      run: |
+        pwd
+        ls -la
+        node --version
+        npm --version
+
+    - name: Install Dependencies
+      run: |
+        rm -f package-lock.json
+        npm install
+
+    - name: Run Tests
+      env:
+        NODE_ENV: test
+      run: |
+        echo "Running tests..."
+        npm test || {
+          echo "Test failed. Debug info:"
+          cat npm-debug.log || true
+          exit 1
+        }
+
   build-and-test:
     runs-on: ubuntu-latest
     defaults:
