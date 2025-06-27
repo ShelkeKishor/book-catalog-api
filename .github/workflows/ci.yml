@@ -12,8 +12,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-      with:
-        repository: 'ShelkeKishor/book-catalog-api'
 
     - name: Set up Node.js
       uses: actions/setup-node@v3
@@ -24,7 +22,15 @@ jobs:
 
     - name: Install Dependencies
       working-directory: backend
-      run: npm install
+      run: |
+        npm ci
+        npm install -g jest
+
+    - name: Setup Database
+      working-directory: backend
+      run: |
+        touch db.json
+        echo '{"books":[]}' > db.json
 
     - name: Run Unit Tests
       working-directory: backend
@@ -41,12 +47,17 @@ jobs:
       run: |
         # Start the server in background
         node index.js &
+        echo "Waiting for server to start..."
+        sleep 10
+        
+        # Check if server is running
+        curl http://localhost:3000/api/books || exit 1
+        
+        # Store server PID
         SERVER_PID=$!
         
-        # Wait for server to be ready
-        sleep 5
-        
         # Run API tests
+        echo "Running API tests..."
         curl -X POST http://localhost:3000/api/books \
           -H "Content-Type: application/json" \
           -d '{"title": "Test Book", "author": "Test Author", "published_year": 2024}'
@@ -54,10 +65,11 @@ jobs:
         curl http://localhost:3000/api/books
         
         # Run Keploy tests
+        echo "Running Keploy tests..."
         keploy test -c "node index.js" --delay 5
         
         # Kill the server
-        kill $SERVER_PID
+        kill $SERVER_PID || true
 
     - name: Upload Test Results
       if: always()
@@ -75,6 +87,8 @@ jobs:
     environment: production
 
     steps:
+    - uses: actions/checkout@v3
+    
     - name: Deploy to Production
       run: |
         echo "Deployment would happen here" 
