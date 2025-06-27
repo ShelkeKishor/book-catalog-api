@@ -14,10 +14,10 @@ jobs:
         working-directory: backend
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
 
@@ -43,6 +43,13 @@ jobs:
           cat npm-debug.log || true
           exit 1
         }
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: backend/coverage/
 
   build-and-test:
     runs-on: ubuntu-latest
