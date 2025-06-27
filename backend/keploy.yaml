@@ -1,0 +1,76 @@
+version: api.keploy.io/v1beta2
+kind: Http
+
+name: book-catalog-api-tests
+
+spec:
+  metadata:
+    name: book-catalog-api
+    description: API tests for book catalog service
+  
+  tests:
+    - name: get-all-books
+      path: /api/books
+      method: GET
+      expected:
+        status: 200
+        contentType: application/json
+    
+    - name: create-book
+      path: /api/books
+      method: POST
+      request:
+        body:
+          title: "Test Book"
+          author: "Test Author"
+          published_year: 2024
+      expected:
+        status: 201
+        contentType: application/json
+        schema: "#/components/schemas/Book"
+    
+    - name: get-book-by-id
+      path: /api/books/{id}
+      method: GET
+      pathParams:
+        id: "{{created.id}}"
+      expected:
+        status: 200
+        contentType: application/json
+        schema: "#/components/schemas/Book"
+    
+    - name: update-book
+      path: /api/books/{id}
+      method: PUT
+      pathParams:
+        id: "{{created.id}}"
+      request:
+        body:
+          title: "Updated Test Book"
+          author: "Updated Test Author"
+          published_year: 2024
+      expected:
+        status: 200
+        contentType: application/json
+        schema: "#/components/schemas/Book"
+    
+    - name: delete-book
+      path: /api/books/{id}
+      method: DELETE
+      pathParams:
+        id: "{{created.id}}"
+      expected:
+        status: 204
+
+  assertions:
+    - name: validate-book-schema
+      type: schema
+      spec:
+        schema: "#/components/schemas/Book"
+        path: $.body
+    
+    - name: validate-error-schema
+      type: schema
+      spec:
+        schema: "#/components/schemas/Error"
+        path: $.body 

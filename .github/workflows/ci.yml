@@ -1,0 +1,80 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: 'ShelkeKishor/book-catalog-api'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install Dependencies
+      working-directory: backend
+      run: npm install
+
+    - name: Run Unit Tests
+      working-directory: backend
+      run: npm test
+
+    - name: Install Keploy
+      run: |
+        curl -O https://raw.githubusercontent.com/keploy/keploy/main/keploy.sh
+        chmod +x keploy.sh
+        sudo ./keploy.sh
+
+    - name: Start Server and Run API Tests
+      working-directory: backend
+      run: |
+        # Start the server in background
+        node index.js &
+        SERVER_PID=$!
+        
+        # Wait for server to be ready
+        sleep 5
+        
+        # Run API tests
+        curl -X POST http://localhost:3000/api/books \
+          -H "Content-Type: application/json" \
+          -d '{"title": "Test Book", "author": "Test Author", "published_year": 2024}'
+        
+        curl http://localhost:3000/api/books
+        
+        # Run Keploy tests
+        keploy test -c "node index.js" --delay 5
+        
+        # Kill the server
+        kill $SERVER_PID
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          backend/coverage/
+          backend/keploy-test-results/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: production
+
+    steps:
+    - name: Deploy to Production
+      run: |
+        echo "Deployment would happen here" 
