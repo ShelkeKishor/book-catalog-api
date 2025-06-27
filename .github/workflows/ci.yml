@@ -30,11 +30,12 @@ jobs:
       working-directory: backend
       run: |
         echo '{"books":[]}' > db.json
+        chmod 666 db.json
 
     - name: Run Unit Tests
       working-directory: backend
       run: |
-        npm test
+        NODE_ENV=test npm test
         echo "Unit tests completed successfully"
 
     - name: Install Keploy
@@ -49,8 +50,12 @@ jobs:
         NODE_ENV: test
         PORT: 3000
       run: |
+        # Create test database file with proper permissions
+        echo '{"books":[]}' > db.json
+        chmod 666 db.json
+        
         # Start the server in background with proper logging
-        node index.js > server.log 2>&1 &
+        NODE_ENV=test node index.js > server.log 2>&1 &
         echo "Server starting..."
         
         # Store server PID
@@ -64,6 +69,7 @@ jobs:
           RETRY_COUNT=$((RETRY_COUNT + 1))
           if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
             echo "Server failed to start within 30 seconds"
+            echo "Server logs:"
             cat server.log
             exit 1
           fi
@@ -85,13 +91,14 @@ jobs:
         # Run Keploy tests if available
         if command -v keploy &> /dev/null; then
           echo "Running Keploy tests..."
-          keploy test -c "node index.js" --delay 5 || echo "Keploy tests failed but continuing..."
+          timeout 30s keploy test -c "NODE_ENV=test node index.js" --delay 5 || echo "Keploy tests failed but continuing..."
         else
           echo "Keploy not available, skipping Keploy tests"
         fi
         
         # Kill the server and show logs
         kill $SERVER_PID || true
+        echo "Server logs:"
         cat server.log
 
     - name: Upload Test Results
@@ -109,11 +116,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     environment: production
-    
-    env:
-      NODE_ENV: ${{ secrets.NODE_ENV }}
-      PORT: ${{ secrets.PORT }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
     - uses: actions/checkout@v3
@@ -128,19 +130,21 @@ jobs:
     - name: Install Dependencies
       working-directory: backend
       run: npm ci
-    
-    - name: Deploy to Production
-      env:
-        DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-        DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+
+    - name: Create production database
+      working-directory: backend
       run: |
-        if [ -n "$DEPLOY_URL" ]; then
-          echo "Deploying to $DEPLOY_URL"
-          # Add your deployment commands here
-          # For example:
-          # - Deploy to cloud platform
-          # - Update configuration
-          # - Run database migrations
-        else
-          echo "No deployment URL configured. Skipping deployment."
-        fi 
+        echo '{"books":[]}' > db.json
+        chmod 666 db.json
+    
+    - name: Deploy to Heroku
+      uses: akhileshns/heroku-deploy@v3.12.14
+      with:
+        heroku_api_key: ${{ secrets.DEPLOY_TOKEN }}
+        heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "backend"
+      env:
+        NODE_ENV: production
+        PORT: ${{ secrets.PORT }}
+        HD_APP_BASE: "backend" 
