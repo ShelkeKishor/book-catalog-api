@@ -2,12 +2,19 @@ import express from 'express';
 import cors from 'cors';
 import { nanoid } from 'nanoid';
 import { db } from './database.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from the frontend directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // --- API Endpoints for Books ---
 

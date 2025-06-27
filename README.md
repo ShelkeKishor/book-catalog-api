@@ -2,6 +2,9 @@
 
 A simple but elegant full-stack application for managing a book collection, built with a Node.js backend and a clean, responsive vanilla JavaScript frontend.
 
+## CI/CD Pipeline Status
+![CI/CD Pipeline](https://github.com/ShelkeKishor/book-catalog-api/actions/workflows/ci.yml/badge.svg)
+
 ## Preview
 
 ![Book Catalog UI](frontend/screenshot.png)
@@ -13,6 +16,8 @@ A simple but elegant full-stack application for managing a book collection, buil
 -   **Responsive Frontend**: A clean and intuitive UI built with vanilla JavaScript, HTML, and CSS.
 -   **High Test Coverage**: The backend is thoroughly tested with Jest, achieving over 94% statement coverage.
 -   **In-Memory Testing**: Utilizes an in-memory database for tests to ensure speed and reliability without side effects.
+-   **API Testing with Keploy**: Automated API testing using Keploy for comprehensive endpoint validation.
+-   **CI/CD Integration**: Continuous Integration and Deployment pipeline with GitHub Actions.
 
 ## Tech Stack
 
@@ -21,7 +26,87 @@ The project is built with a modern and robust tech stack:
 -   **Backend**: [Node.js](https://nodejs.org/), [Express.js](https://expressjs.com/)
 -   **Database**: [lowdb](https://github.com/typicode/lowdb) (a small local JSON database)
 -   **Frontend**: Vanilla JavaScript, HTML5, CSS3
--   **Testing**: [Jest](https://jestjs.io/), [Supertest](https://github.com/ladjs/supertest)
+-   **Testing**: [Jest](https://jestjs.io/), [Supertest](https://github.com/ladjs/supertest), [Keploy](https://keploy.io/)
+-   **CI/CD**: GitHub Actions
+
+## API Documentation & Testing
+
+### OpenAPI Schema
+
+The API is documented using OpenAPI 3.0 specification. You can find the complete schema in `backend/openapi.yaml`. This schema describes all available endpoints, request/response formats, and data models.
+
+### API Testing with Keploy
+
+We use Keploy for automated API testing, which provides:
+
+- Comprehensive API test coverage
+- Automatic test case generation
+- Schema validation
+- Response validation
+- Integration with CI/CD pipeline
+
+To run Keploy tests locally:
+
+1. Install Keploy:
+```bash
+curl -O https://raw.githubusercontent.com/keploy/keploy/main/keploy.sh
+chmod +x keploy.sh
+sudo ./keploy.sh
+```
+
+2. Run the tests:
+```bash
+cd backend
+keploy test -c "node server.js" --delay 5
+```
+
+### CI/CD Pipeline
+
+This project uses GitHub Actions for Continuous Integration and Continuous Deployment. The pipeline includes:
+
+### Continuous Integration (CI)
+- **Automated Testing**:
+  - Unit Tests
+  - API Integration Tests
+  - Keploy API Tests
+- **Code Quality**:
+  - Test Coverage Reports
+  - API Response Validation
+
+### Continuous Deployment (CD)
+- Automatic deployment on successful merge to main/master branch
+- Test artifacts preservation
+- Environment-specific deployments
+
+### Pipeline Workflow
+1. **Build & Test**:
+   - Install dependencies
+   - Run unit tests
+   - Run API integration tests
+   - Generate test coverage reports
+
+2. **API Testing with Keploy**:
+   - Validate API endpoints
+   - Test response schemas
+   - Verify error handling
+
+3. **Artifact Generation**:
+   - Test results
+   - Coverage reports
+   - API documentation
+
+4. **Deployment** (on main/master branch):
+   - Automatic deployment to production
+   - Environment configuration
+   - Health checks
+
+### View Test Results
+- Go to the [Actions tab](https://github.com/ShelkeKishor/book-catalog-api/actions)
+- Click on any workflow run
+- Download artifacts to view detailed test reports
+
+### Repository
+This project is hosted on GitHub: [book-catalog-api](https://github.com/ShelkeKishor/book-catalog-api)
 
 ## API Endpoints
 
