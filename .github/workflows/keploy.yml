@@ -147,4 +147,16 @@ jobs:
         else
           echo "Server log file not found"
           exit 1
-        fi 
+        fi
+
+    - name: Run ESLint
+      run: |
+        echo "Running ESLint..."
+        npx eslint .
+
+    - name: Upload ESLint Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: eslint-results
+        path: eslint-results.json 
