@@ -1,4 +1,10 @@
 import { db } from '../database.js';
+import { rm } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const dbPath = join(__dirname, '..', 'db.json');
 
 // Set up test environment variables
 process.env.NODE_ENV = 'test';
@@ -15,8 +21,11 @@ beforeAll(async () => {
 // Clean up after all tests
 afterAll(async () => {
   // Clean up database
-  db.data = { users: [], books: [] };
-  await db.write();
+  try {
+    await rm(dbPath);
+  } catch (error) {
+    // Ignore if file doesn't exist
+  }
 });
 
 // Increase timeout for all tests

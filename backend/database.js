@@ -1,8 +1,7 @@
-import { Low } from 'lowdb';
-import { JSONFile } from 'lowdb/node';
-import { Memory } from 'lowdb';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
 
 const defaultData = { 
     books: [],
@@ -12,12 +11,10 @@ const defaultData = {
 // Get the directory name of the current module
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Use an in-memory database for tests, and a JSON file for everything else
-const adapter = process.env.NODE_ENV === 'test'
-  ? new Memory()
-  : new JSONFile(join(__dirname, 'db.json'));
-
-export const db = new Low(adapter, defaultData);
+// Use JSON file for storage
+const file = join(__dirname, 'db.json');
+const adapter = new JSONFile(file);
+const db = new Low(adapter, defaultData);
 
 /**
  * Initializes the database by reading from the adapter and writing initial data if empty.
@@ -25,9 +22,9 @@ export const db = new Low(adapter, defaultData);
 export const initDatabase = async () => {
     try {
         await db.read();
-        db.data = db.data || defaultData;
         
         // Ensure all collections exist
+        db.data = db.data || defaultData;
         db.data.books = db.data.books || [];
         db.data.users = db.data.users || [];
         
@@ -42,3 +39,5 @@ export const initDatabase = async () => {
         db.data = defaultData;
     }
 };
+
+export { db };
