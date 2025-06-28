@@ -50,7 +50,7 @@ jobs:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
         echo "Running tests..."
-        jest --verbose --detectOpenHandles --forceExit --coverage 2>&1 | tee test.log
+        npm test 2>&1 | tee test.log
         echo "Tests completed"
 
     - name: Install Keploy
