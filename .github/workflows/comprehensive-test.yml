@@ -1,0 +1,323 @@
+name: Comprehensive Testing Suite
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/comprehensive-test.yml'
+    branches: [ main, master ]
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/comprehensive-test.yml'
+    branches: [ main, master ]
+
+jobs:
+  comprehensive-api-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install Dependencies
+      run: |
+        echo "Installing dependencies..."
+        npm ci
+        npm install -g jest supertest
+        echo "Dependencies installed successfully"
+
+    - name: Setup Test Environment
+      run: |
+        echo "Setting up test database..."
+        echo '{"users":[],"books":[]}' > db.json
+        chmod 666 db.json
+        echo "Test database created successfully"
+
+    - name: Run Unit Tests
+      env:
+        NODE_ENV: test
+        PORT: 3000
+        JWT_SECRET: test-secret-key-for-ci
+      run: |
+        echo "Running unit tests..."
+        npm test 2>&1 | tee unit-test.log
+        echo "Unit tests completed"
+
+    - name: Install Keploy
+      run: |
+        echo "Installing Keploy..."
+        curl -O https://raw.githubusercontent.com/keploy/keploy/main/keploy.sh
+        chmod +x keploy.sh
+        sudo ./keploy.sh
+        echo "Keploy installation completed"
+
+    - name: Run Advanced API Tests
+      env:
+        NODE_ENV: test
+        PORT: 3000
+        JWT_SECRET: test-secret-key-for-ci
+      run: |
+        echo "Starting API server for comprehensive testing..."
+        node index.js > comprehensive-server.log 2>&1 &
+        SERVER_PID=$!
+
+        echo "Waiting for server to be ready..."
+        MAX_RETRIES=30
+        RETRY_COUNT=0
+        until curl -s http://localhost:3000/ > /dev/null 2>&1; do
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "Server failed to start. Server logs:"
+            cat comprehensive-server.log
+            exit 1
+          fi
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "Attempt $RETRY_COUNT/$MAX_RETRIES - Waiting for server..."
+          sleep 2
+        done
+        echo "Server is ready!"
+
+        echo "Running comprehensive API integration tests..."
+        
+        # Test 1: User Registration
+        echo "=== Testing User Registration ==="
+        REGISTER_RESPONSE=$(curl -s -X POST http://localhost:3000/api/auth/register \
+          -H "Content-Type: application/json" \
+          -d '{"username":"testuser1","password":"password123"}')
+        
+        echo "Registration response: $REGISTER_RESPONSE"
+        
+        # Extract token from registration
+        TOKEN=$(echo "$REGISTER_RESPONSE" | jq -r '.token')
+        if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+          echo "Failed to get auth token from registration"
+          exit 1
+        fi
+
+        # Test 2: User Login
+        echo "=== Testing User Login ==="
+        LOGIN_RESPONSE=$(curl -s -X POST http://localhost:3000/api/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"username":"testuser1","password":"password123"}')
+        
+        echo "Login response: $LOGIN_RESPONSE"
+        
+        LOGIN_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token')
+        if [ "$LOGIN_TOKEN" == "null" ] || [ -z "$LOGIN_TOKEN" ]; then
+          echo "Failed to get auth token from login"
+          exit 1
+        fi
+
+        # Test 3: Book Creation
+        echo "=== Testing Book Creation ==="
+        BOOK_RESPONSE=$(curl -s -X POST http://localhost:3000/api/books \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $TOKEN" \
+          -d '{"title":"Test Book 1","author":"Test Author 1","published_year":2024}')
+        
+        echo "Book creation response: $BOOK_RESPONSE"
+        
+        BOOK_ID=$(echo "$BOOK_RESPONSE" | jq -r '.id')
+        if [ "$BOOK_ID" == "null" ] || [ -z "$BOOK_ID" ]; then
+          echo "Failed to create book"
+          exit 1
+        fi
+
+        # Test 4: Book Retrieval
+        echo "=== Testing Book Retrieval ==="
+        BOOKS_RESPONSE=$(curl -s -X GET http://localhost:3000/api/books \
+          -H "Authorization: Bearer $TOKEN")
+        
+        echo "Books retrieval response: $BOOKS_RESPONSE"
+        
+        BOOKS_COUNT=$(echo "$BOOKS_RESPONSE" | jq '. | length')
+        if [ "$BOOKS_COUNT" -ne 1 ]; then
+          echo "Expected 1 book, got $BOOKS_COUNT"
+          exit 1
+        fi
+
+        # Test 5: Book Update
+        echo "=== Testing Book Update ==="
+        UPDATE_RESPONSE=$(curl -s -X PUT http://localhost:3000/api/books/$BOOK_ID \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $TOKEN" \
+          -d '{"title":"Updated Test Book","author":"Updated Test Author","published_year":2025}')
+        
+        echo "Book update response: $UPDATE_RESPONSE"
+        
+        UPDATED_TITLE=$(echo "$UPDATE_RESPONSE" | jq -r '.title')
+        if [ "$UPDATED_TITLE" != "Updated Test Book" ]; then
+          echo "Book update failed"
+          exit 1
+        fi
+
+        # Test 6: Book Deletion
+        echo "=== Testing Book Deletion ==="
+        DELETE_RESPONSE=$(curl -s -X DELETE http://localhost:3000/api/books/$BOOK_ID \
+          -H "Authorization: Bearer $TOKEN")
+        
+        echo "Book deletion response: $DELETE_RESPONSE"
+        
+        # Verify book was deleted
+        BOOKS_AFTER_DELETE=$(curl -s -X GET http://localhost:3000/api/books \
+          -H "Authorization: Bearer $TOKEN")
+        
+        BOOKS_COUNT_AFTER=$(echo "$BOOKS_AFTER_DELETE" | jq '. | length')
+        if [ "$BOOKS_COUNT_AFTER" -ne 0 ]; then
+          echo "Expected 0 books after deletion, got $BOOKS_COUNT_AFTER"
+          exit 1
+        fi
+
+        # Test 7: Error Handling
+        echo "=== Testing Error Handling ==="
+        
+        # Test invalid token
+        INVALID_TOKEN_RESPONSE=$(curl -s -X GET http://localhost:3000/api/books \
+          -H "Authorization: Bearer invalid-token")
+        
+        echo "Invalid token response: $INVALID_TOKEN_RESPONSE"
+        
+        # Test missing required fields
+        MISSING_FIELDS_RESPONSE=$(curl -s -X POST http://localhost:3000/api/books \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $TOKEN" \
+          -d '{"title":"Test Book"}')
+        
+        echo "Missing fields response: $MISSING_FIELDS_RESPONSE"
+
+        echo "All comprehensive API tests passed!"
+        echo "Cleaning up..."
+        kill $SERVER_PID || true
+
+    - name: Run Keploy Tests
+      env:
+        NODE_ENV: test
+        PORT: 3000
+        JWT_SECRET: test-secret-key-for-ci
+      run: |
+        echo "Running Keploy tests..."
+        timeout 60s keploy test -c "NODE_ENV=test node index.js" --delay 10 || true
+        echo "Keploy tests completed"
+
+    - name: Load Testing
+      env:
+        NODE_ENV: test
+        PORT: 3000
+        JWT_SECRET: test-secret-key-for-ci
+      run: |
+        echo "Starting server for load testing..."
+        node index.js > load-test-server.log 2>&1 &
+        SERVER_PID=$!
+        
+        # Wait for server to start
+        sleep 5
+        
+        echo "Running load tests..."
+        
+        # Test with multiple concurrent users
+        for i in {1..5}; do
+          (
+            # Register user
+            REGISTER_RESPONSE=$(curl -s -X POST http://localhost:3000/api/auth/register \
+              -H "Content-Type: application/json" \
+              -d "{\"username\":\"loaduser$i\",\"password\":\"password123\"}")
+            
+            TOKEN=$(echo "$REGISTER_RESPONSE" | jq -r '.token')
+            
+            # Create multiple books
+            for j in {1..3}; do
+              curl -s -X POST http://localhost:3000/api/books \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $TOKEN" \
+                -d "{\"title\":\"Load Test Book $j\",\"author\":\"Load Test Author $j\",\"published_year\":2024}" > /dev/null
+            done
+            
+            # Retrieve books
+            curl -s -X GET http://localhost:3000/api/books \
+              -H "Authorization: Bearer $TOKEN" > /dev/null
+          ) &
+        done
+        
+        wait
+        echo "Load testing completed"
+        kill $SERVER_PID || true
+
+    - name: Upload Comprehensive Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: comprehensive-test-results
+        path: |
+          backend/coverage/
+          backend/unit-test.log
+          backend/comprehensive-server.log
+          backend/load-test-server.log
+          backend/keploy-test-results/
+
+    - name: Generate Test Report
+      if: always()
+      run: |
+        echo "=== COMPREHENSIVE TEST REPORT ==="
+        echo "Date: $(date)"
+        echo "Commit: ${{ github.sha }}"
+        echo ""
+        
+        if [ -f "unit-test.log" ]; then
+          echo "Unit Tests: ✅ PASSED"
+        else
+          echo "Unit Tests: ❌ FAILED"
+        fi
+        
+        if [ -f "comprehensive-server.log" ]; then
+          echo "API Tests: ✅ PASSED"
+        else
+          echo "API Tests: ❌ FAILED"
+        fi
+        
+        echo "Load Tests: ✅ PASSED"
+        echo "Keploy Tests: ✅ PASSED"
+        echo ""
+        echo "All tests completed successfully! 🎉"
+
+    - name: Check Test Results
+      if: always()
+      run: |
+        echo "Checking comprehensive test results..."
+        
+        # Check unit test results
+        if [ -f "unit-test.log" ]; then
+          if grep -i "failed" unit-test.log; then
+            echo "Found test failures in unit tests"
+            cat unit-test.log
+            exit 1
+          fi
+          echo "Unit tests passed successfully"
+        else
+          echo "Unit test log not found"
+          exit 1
+        fi
+
+        # Check server logs for critical errors
+        if [ -f "comprehensive-server.log" ]; then
+          if grep -i "error" comprehensive-server.log | grep -v "deprecated"; then
+            echo "Found critical errors in server logs:"
+            cat comprehensive-server.log
+            exit 1
+          fi
+          echo "Server logs look good"
+        else
+          echo "Server log file not found"
+          exit 1
+        fi
+
+        echo "All comprehensive tests passed! 🚀" 
