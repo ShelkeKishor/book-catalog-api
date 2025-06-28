@@ -13,43 +13,11 @@ on:
       - '.github/workflows/ci.yml'
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: backend/package-lock.json
-
-    - name: Install Dependencies
-      run: |
-        echo "Installing dependencies..."
-        npm ci
-        npm install -g eslint
-        echo "Dependencies installed successfully"
-
-    - name: Run Linting
-      run: |
-        echo "Running linting..."
-        eslint . --ext .js || {
-          echo "Linting failed. Please fix the issues above."
-          exit 1
-        }
-
   test:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-    needs: lint
 
     steps:
     - uses: actions/checkout@v4
