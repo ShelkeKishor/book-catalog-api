@@ -23,20 +23,22 @@ jobs:
         cache: 'npm'
         cache-dependency-path: backend/package-lock.json
 
-    - name: Debug Info
-      run: |
-        pwd
-        ls -la
-        node --version
-        npm --version
-
     - name: Install Dependencies
       run: |
+        echo "Installing dependencies..."
         npm ci || {
           echo "npm ci failed, falling back to npm install"
           rm -f package-lock.json
           npm install
         }
+        echo "Dependencies installed successfully"
+
+    - name: Setup Test Environment
+      run: |
+        echo "Setting up test environment..."
+        echo '{"books":[],"users":[]}' > db.json
+        chmod 666 db.json
+        echo "Test environment setup completed"
 
     - name: Run Tests
       env:
@@ -44,17 +46,61 @@ jobs:
         PORT: ${{ secrets.PORT }}
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        DEBUG: "true"
       run: |
-        echo "Running tests with coverage..."
-        npm test -- --coverage --verbose --detectOpenHandles --forceExit || {
-          echo "Test failed. Debug info:"
-          echo "Test output:"
-          cat test-output.log || true
-          echo "Error log:"
-          cat npm-debug.log || true
-          exit 1
-        }
+        echo "Running tests..."
+        npm test -- --detectOpenHandles --forceExit --coverage --ci --runInBand
+        echo "Tests completed successfully"
+
+    - name: Start Server for Integration Tests
+      env:
+        NODE_ENV: test
+        PORT: ${{ secrets.PORT }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        echo "Starting server for integration tests..."
+        node index.js > server.log 2>&1 &
+        SERVER_PID=$!
+
+        echo "Waiting for server to be ready..."
+        MAX_RETRIES=30
+        RETRY_COUNT=0
+        until curl -s http://localhost:${{ secrets.PORT }}/api/books > /dev/null; do
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "Server failed to start. Server logs:"
+            cat server.log
+            exit 1
+          fi
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "Attempt $RETRY_COUNT/$MAX_RETRIES - Waiting for server..."
+          sleep 1
+        done
+        echo "Server is ready!"
+
+        echo "Running integration tests..."
+        # Create a test user
+        curl -X POST http://localhost:${{ secrets.PORT }}/api/auth/register \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Test User","email":"test@example.com","password":"testpass123"}' \
+          -v
+
+        # Login and get token
+        TOKEN=$(curl -X POST http://localhost:${{ secrets.PORT }}/api/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"test@example.com","password":"testpass123"}' \
+          | jq -r '.token')
+
+        # Test protected endpoints
+        curl -X POST http://localhost:${{ secrets.PORT }}/api/books \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $TOKEN" \
+          -d '{"title":"Test Book","author":"Test Author","published_year":2024}' \
+          -v
+
+        echo "Cleaning up..."
+        kill $SERVER_PID || true
+        echo "Server logs:"
+        cat server.log
 
     - name: Upload Test Results
       if: always()
@@ -63,5 +109,20 @@ jobs:
         name: test-results
         path: |
           backend/coverage/
-          backend/test-output.log
-          backend/npm-debug.log 
+          backend/server.log
+          backend/test-results/
+
+    - name: Check Test Results
+      if: always()
+      run: |
+        if [ -f "server.log" ]; then
+          echo "Test execution completed. Checking results..."
+          if grep -i "error" server.log; then
+            echo "Found errors in server logs"
+            cat server.log
+            exit 1
+          fi
+        else
+          echo "Server log file not found"
+          exit 1
+        fi 
