@@ -114,4 +114,9 @@ Write-Host "Cleaning up..."
 $nodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue
 if ($nodeProcesses) {
     $nodeProcesses | Stop-Process -Force
-} 
+}
+
+echo "Installing dependencies..."
+npm ci
+npm install -g eslint
+echo "Dependencies installed successfully" 
