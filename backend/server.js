@@ -4,6 +4,8 @@ import { nanoid } from 'nanoid';
 import { db } from './database.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import authRoutes from './routes/auth.js';
+import { verifyToken } from './middleware/auth.js';
 
 const app = express();
 
@@ -16,16 +18,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// --- API Endpoints for Books ---
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+// --- Protected API Endpoints for Books ---
 
 // GET all books
-app.get('/api/books', async (req, res) => {
+app.get('/api/books', verifyToken, async (req, res) => {
   await db.read();
   res.json(db.data.books);
 });
 
 // GET a single book by ID
-app.get('/api/books/:id', async (req, res) => {
+app.get('/api/books/:id', verifyToken, async (req, res) => {
   await db.read();
   const book = db.data.books.find(b => b.id === req.params.id);
   if (book) {
@@ -36,14 +41,21 @@ app.get('/api/books/:id', async (req, res) => {
 });
 
 // POST a new book
-app.post('/api/books', async (req, res) => {
+app.post('/api/books', verifyToken, async (req, res) => {
   const { title, author, published_year } = req.body;
 
   if (!title || !author || !published_year) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
 
-  const newBook = { id: nanoid(), title, author, published_year };
+  const newBook = { 
+    id: nanoid(), 
+    title, 
+    author, 
+    published_year,
+    userId: req.user.id // Associate book with user
+  };
+  
   db.data.books.push(newBook);
   await db.write();
 
@@ -51,12 +63,17 @@ app.post('/api/books', async (req, res) => {
 });
 
 // PUT (update) a book by ID
-app.put('/api/books/:id', async (req, res) => {
+app.put('/api/books/:id', verifyToken, async (req, res) => {
   await db.read();
   const bookIndex = db.data.books.findIndex(b => b.id === req.params.id);
 
   if (bookIndex === -1) {
     return res.status(404).json({ message: 'Book not found' });
+  }
+
+  // Check if user owns the book
+  if (db.data.books[bookIndex].userId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to update this book' });
   }
 
   db.data.books[bookIndex] = { ...db.data.books[bookIndex], ...req.body };
@@ -66,12 +83,17 @@ app.put('/api/books/:id', async (req, res) => {
 });
 
 // DELETE a book by ID
-app.delete('/api/books/:id', async (req, res) => {
+app.delete('/api/books/:id', verifyToken, async (req, res) => {
   await db.read();
   const bookIndex = db.data.books.findIndex(b => b.id === req.params.id);
 
   if (bookIndex === -1) {
     return res.status(404).json({ message: 'Book not found' });
+  }
+
+  // Check if user owns the book
+  if (db.data.books[bookIndex].userId !== req.user.id) {
+    return res.status(403).json({ message: 'Not authorized to delete this book' });
   }
 
   db.data.books.splice(bookIndex, 1);
