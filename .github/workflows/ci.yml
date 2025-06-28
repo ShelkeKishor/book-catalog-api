@@ -41,6 +41,9 @@ jobs:
     - name: Run Tests
       env:
         NODE_ENV: test
+        PORT: ${{ secrets.PORT }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
         DEBUG: "true"
       run: |
         echo "Running tests with coverage..."
