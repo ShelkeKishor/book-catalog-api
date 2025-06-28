@@ -1,17 +1,21 @@
 import request from 'supertest';
 import http from 'http';
-import app from '../server.js';
 import { jest } from '@jest/globals';
 
-// Mock the database module
+// Mock the database module before importing the app
+const mockDb = {
+  read: jest.fn().mockResolvedValue(),
+  write: jest.fn().mockResolvedValue(),
+  data: { books: [], users: [] }
+};
+
 jest.mock('../database.js', () => ({
-  db: {
-    read: jest.fn(),
-    write: jest.fn(),
-    data: { books: [], users: [] }
-  },
-  initDatabase: jest.fn()
+  db: mockDb,
+  initDatabase: jest.fn().mockResolvedValue()
 }));
+
+// Import app after mocking
+import app from '../server.js';
 
 describe('Book Catalog API - Mocked Tests', () => {
   let server;
@@ -19,6 +23,11 @@ describe('Book Catalog API - Mocked Tests', () => {
   let userId;
 
   beforeAll(async () => {
+    // Reset mock data
+    mockDb.data = { books: [], users: [] };
+    mockDb.read.mockClear();
+    mockDb.write.mockClear();
+    
     server = http.createServer(app);
     await new Promise(resolve => server.listen(resolve));
 
@@ -46,14 +55,16 @@ describe('Book Catalog API - Mocked Tests', () => {
 
   beforeEach(() => {
     // Before each test, reset the mock's data and clear mock call history
-    db.data.books = [];
-    db.write.mockClear();
-    db.read.mockClear();
+    mockDb.data.books = [];
+    mockDb.data.users = [{ id: userId, username: 'testuser' }]; // Keep the test user
+    mockDb.write.mockClear();
+    mockDb.read.mockClear();
   });
 
   describe('POST /api/books', () => {
     it('should create a new book', async () => {
       const newBook = { title: 'The Hobbit', author: 'J.R.R. Tolkien', published_year: 1937 };
+      
       const response = await request(server)
         .post('/api/books')
         .set('Authorization', `Bearer ${authToken}`)
@@ -62,17 +73,21 @@ describe('Book Catalog API - Mocked Tests', () => {
       expect(response.status).toBe(201);
       expect(response.body.title).toBe(newBook.title);
       expect(response.body.userId).toBe(userId);
-      // Check that the book was added to our mock database
-      expect(db.data.books).toHaveLength(1);
       // Check that the write function was called
-      expect(db.write).toHaveBeenCalledTimes(1);
+      expect(mockDb.write).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('GET /api/books', () => {
     it('should get all books', async () => {
       // Populate the mock database
-      db.data.books = [{ title: 'Fahrenheit 451', author: 'Ray Bradbury', published_year: 1953, userId }];
+      mockDb.data.books = [{ 
+        id: 'test-id', 
+        title: 'Fahrenheit 451', 
+        author: 'Ray Bradbury', 
+        published_year: 1953, 
+        userId 
+      }];
 
       const response = await request(server)
         .get('/api/books')

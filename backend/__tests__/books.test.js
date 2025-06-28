@@ -10,9 +10,8 @@ beforeAll(async () => {
   const res = await request(app)
     .post('/api/auth/register')
     .send({
-      name: 'Test User',
-      email: 'test@example.com',
-      password: 'password123'
+      username: 'testuser',
+      password: 'testpass123'
     });
   authToken = res.body.token;
   userId = res.body.user.id;
@@ -22,7 +21,6 @@ beforeEach(async () => {
   // Reset database before each test, but keep the test user
   const users = db.data.users;
   db.data = { users, books: [] };
-  await db.write();
 });
 
 describe('Books API Endpoints', () => {
@@ -125,8 +123,7 @@ describe('Books API Endpoints', () => {
       const anotherUserRes = await request(app)
         .post('/api/auth/register')
         .send({
-          name: 'Another User',
-          email: 'another@example.com',
+          username: 'anotheruser',
           password: 'password123'
         });
 
@@ -179,8 +176,7 @@ describe('Books API Endpoints', () => {
       const anotherUserRes = await request(app)
         .post('/api/auth/register')
         .send({
-          name: 'Another User',
-          email: 'another@example.com',
+          username: 'anotheruser',
           password: 'password123'
         });
 

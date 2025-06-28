@@ -19,15 +19,32 @@ const getDbPath = () => {
   return join(__dirname, 'db.json');
 };
 
-const file = getDbPath();
-const adapter = new JSONFile(file);
-const db = new Low(adapter, defaultData);
+// For tests, use in-memory database to avoid file permission issues
+let db;
+if (process.env.NODE_ENV === 'test') {
+  // Create a simple in-memory database for tests
+  db = {
+    data: { ...defaultData },
+    read: async () => {},
+    write: async () => {}
+  };
+} else {
+  const file = getDbPath();
+  const adapter = new JSONFile(file);
+  db = new Low(adapter, defaultData);
+}
 
 /**
  * Initializes the database by reading from the adapter and writing initial data if empty.
  */
 export const initDatabase = async () => {
   try {
+    if (process.env.NODE_ENV === 'test') {
+      // For tests, just ensure default data structure
+      db.data = { ...defaultData };
+      return;
+    }
+    
     await db.read();
         
     // Ensure all collections exist
@@ -52,6 +69,10 @@ export const initDatabase = async () => {
  */
 export const getDatabase = async () => {
   try {
+    if (process.env.NODE_ENV === 'test') {
+      return db;
+    }
+    
     await db.read();
     if (!db.data) {
       db.data = defaultData;
@@ -61,7 +82,6 @@ export const getDatabase = async () => {
   } catch (error) {
     console.error('Error getting database:', error);
     if (process.env.NODE_ENV === 'test') {
-      db.data = defaultData;
       return db;
     }
     throw error;

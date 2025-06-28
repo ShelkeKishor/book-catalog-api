@@ -1,4 +1,11 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "1751120222878",
+      "username": "testuser",
+      "password": "$2a$10$CX6EnePALNRYrmff7fgr5.QlpwF0i53ls8vQUJTBvy26nGpReJQ/.",
+      "books": []
+    }
+  ],
   "books": []
 }

@@ -5,7 +5,6 @@ import { db } from '../database.js';
 beforeEach(async () => {
   // Reset database before each test
   db.data = { users: [], books: [] };
-  await db.write();
 });
 
 describe('Authentication Endpoints', () => {
@@ -43,23 +42,21 @@ describe('Authentication Endpoints', () => {
           password: 'differentpassword'
         });
 
-      expect(res.statusCode).toBe(400);
-      expect(res.body).toHaveProperty('message', 'Username already exists');
+      expect(res.statusCode).toBe(409);
+      expect(res.body).toHaveProperty('error', 'Username already exists');
     });
   });
 
   describe('POST /api/auth/login', () => {
-    beforeEach(async () => {
-      // Create a test user before each login test
+    it('should login with valid credentials', async () => {
+      // Create a test user first
       await request(app)
         .post('/api/auth/register')
         .send({
           username: 'testuser',
           password: 'password123'
         });
-    });
 
-    it('should login with valid credentials', async () => {
       const res = await request(app)
         .post('/api/auth/login')
         .send({
@@ -76,6 +73,14 @@ describe('Authentication Endpoints', () => {
     });
 
     it('should not login with invalid password', async () => {
+      // Create a test user first
+      await request(app)
+        .post('/api/auth/register')
+        .send({
+          username: 'testuser',
+          password: 'password123'
+        });
+
       const res = await request(app)
         .post('/api/auth/login')
         .send({
@@ -84,7 +89,7 @@ describe('Authentication Endpoints', () => {
         });
 
       expect(res.statusCode).toBe(401);
-      expect(res.body).toHaveProperty('message', 'Invalid username or password');
+      expect(res.body).toHaveProperty('error', 'Invalid username or password');
     });
 
     it('should not login with non-existent username', async () => {
@@ -96,7 +101,7 @@ describe('Authentication Endpoints', () => {
         });
 
       expect(res.statusCode).toBe(401);
-      expect(res.body).toHaveProperty('message', 'Invalid username or password');
+      expect(res.body).toHaveProperty('error', 'Invalid username or password');
     });
   });
 }); 

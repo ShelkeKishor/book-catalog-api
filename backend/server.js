@@ -53,7 +53,7 @@ app.post('/api/books', authenticateToken, async (req, res) => {
     title, 
     author, 
     published_year,
-    userId: req.user.id // Associate book with user
+    userId: req.user.userId // Associate book with user
   };
   
   await db.read();
@@ -73,7 +73,7 @@ app.put('/api/books/:id', authenticateToken, async (req, res) => {
   }
 
   // Check if user owns the book
-  if (db.data.books[bookIndex].userId !== req.user.id) {
+  if (db.data.books[bookIndex].userId !== req.user.userId) {
     return res.status(403).json({ message: 'Not authorized to update this book' });
   }
 
@@ -81,7 +81,7 @@ app.put('/api/books/:id', authenticateToken, async (req, res) => {
     ...db.data.books[bookIndex], 
     ...req.body,
     id: db.data.books[bookIndex].id, // Prevent ID from being updated
-    userId: req.user.id // Prevent userId from being updated
+    userId: req.user.userId // Prevent userId from being updated
   };
   
   db.data.books[bookIndex] = updatedBook;
@@ -100,7 +100,7 @@ app.delete('/api/books/:id', authenticateToken, async (req, res) => {
   }
 
   // Check if user owns the book
-  if (db.data.books[bookIndex].userId !== req.user.id) {
+  if (db.data.books[bookIndex].userId !== req.user.userId) {
     return res.status(403).json({ message: 'Not authorized to delete this book' });
   }
 
