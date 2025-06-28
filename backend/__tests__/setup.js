@@ -7,6 +7,17 @@ jest.setTimeout(10000);
 // Mock console.error to catch and display errors
 const originalError = console.error;
 console.error = (...args) => {
-  originalError(...args);
-  console.log('Stack trace:', new Error().stack);
+  // Only log error in non-test environment
+  if (process.env.NODE_ENV !== 'test') {
+    originalError(...args);
+    console.log('Stack trace:', new Error().stack);
+  }
+};
+
+// Silence console.log during tests unless explicitly needed
+const originalLog = console.log;
+console.log = (...args) => {
+  if (process.env.DEBUG) {
+    originalLog(...args);
+  }
 }; 

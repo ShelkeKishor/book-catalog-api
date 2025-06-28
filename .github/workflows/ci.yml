@@ -30,13 +30,6 @@ jobs:
         node --version
         npm --version
 
-    - name: Setup Test Environment
-      run: |
-        echo "Setting up test database..."
-        echo '{"books":[]}' > db.json
-        chmod 666 db.json
-        echo "Test database created successfully"
-
     - name: Install Dependencies
       run: |
         npm ci || {
@@ -48,10 +41,14 @@ jobs:
     - name: Run Tests
       env:
         NODE_ENV: test
+        DEBUG: "true"
       run: |
-        echo "Running tests..."
-        npm test -- --verbose || {
+        echo "Running tests with coverage..."
+        npm test -- --coverage --verbose --detectOpenHandles --forceExit || {
           echo "Test failed. Debug info:"
+          echo "Test output:"
+          cat test-output.log || true
+          echo "Error log:"
           cat npm-debug.log || true
           exit 1
         }
@@ -61,4 +58,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-results
-        path: backend/coverage/ 
+        path: |
+          backend/coverage/
+          backend/test-output.log
+          backend/npm-debug.log 
