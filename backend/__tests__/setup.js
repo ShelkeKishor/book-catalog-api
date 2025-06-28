@@ -1,5 +1,23 @@
-// Set test environment
+import { db } from '../database.js';
+
+// Set up test environment variables
 process.env.NODE_ENV = 'test';
+process.env.PORT = process.env.PORT || 3000;
+process.env.JWT_SECRET = 'test-secret-key';
+
+// Initialize test database
+beforeAll(async () => {
+  // Ensure database is initialized with empty collections
+  db.data = { users: [], books: [] };
+  await db.write();
+});
+
+// Clean up after all tests
+afterAll(async () => {
+  // Clean up database
+  db.data = { users: [], books: [] };
+  await db.write();
+});
 
 // Increase timeout for all tests
 jest.setTimeout(10000);

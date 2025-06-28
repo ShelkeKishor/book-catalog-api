@@ -56,6 +56,7 @@ app.post('/api/books', verifyToken, async (req, res) => {
     userId: req.user.id // Associate book with user
   };
   
+  await db.read();
   db.data.books.push(newBook);
   await db.write();
 
@@ -76,10 +77,17 @@ app.put('/api/books/:id', verifyToken, async (req, res) => {
     return res.status(403).json({ message: 'Not authorized to update this book' });
   }
 
-  db.data.books[bookIndex] = { ...db.data.books[bookIndex], ...req.body };
+  const updatedBook = { 
+    ...db.data.books[bookIndex], 
+    ...req.body,
+    id: db.data.books[bookIndex].id, // Prevent ID from being updated
+    userId: req.user.id // Prevent userId from being updated
+  };
+  
+  db.data.books[bookIndex] = updatedBook;
   await db.write();
 
-  res.json(db.data.books[bookIndex]);
+  res.json(updatedBook);
 });
 
 // DELETE a book by ID
