@@ -1,28 +1,4 @@
 {
-  "books": [
-    {
-      "id": "I8JuIi2378-2-DYOAWBN4",
-      "title": "The grate king",
-      "author": "kishor shelke",
-      "published_year": 2020
-    },
-    {
-      "id": "wbm5woBHEGZVjuivFn3QR",
-      "title": "gh",
-      "author": "n ",
-      "published_year": 2020
-    },
-    {
-      "id": "51nZ9MPrKjcBu_wFK8W-D",
-      "title": "Brave New World Updated",
-      "author": "Aldous Huxley",
-      "published_year": 1932
-    },
-    {
-      "id": "5tSvV-uxk8kQg3nsxIQLM",
-      "title": "Dune",
-      "author": "Frank Herbert",
-      "published_year": 1965
-    }
-  ]
+  "users": [],
+  "books": []
 }

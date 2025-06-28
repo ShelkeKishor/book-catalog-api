@@ -5,7 +5,7 @@ import { db } from './database.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
-import { verifyToken } from './middleware/auth.js';
+import { authenticateToken } from './middleware/auth.js';
 
 const app = express();
 
@@ -24,13 +24,13 @@ app.use('/api/auth', authRoutes);
 // --- Protected API Endpoints for Books ---
 
 // GET all books
-app.get('/api/books', verifyToken, async (req, res) => {
+app.get('/api/books', authenticateToken, async (req, res) => {
   await db.read();
   res.json(db.data.books);
 });
 
 // GET a single book by ID
-app.get('/api/books/:id', verifyToken, async (req, res) => {
+app.get('/api/books/:id', authenticateToken, async (req, res) => {
   await db.read();
   const book = db.data.books.find(b => b.id === req.params.id);
   if (book) {
@@ -41,7 +41,7 @@ app.get('/api/books/:id', verifyToken, async (req, res) => {
 });
 
 // POST a new book
-app.post('/api/books', verifyToken, async (req, res) => {
+app.post('/api/books', authenticateToken, async (req, res) => {
   const { title, author, published_year } = req.body;
 
   if (!title || !author || !published_year) {
@@ -64,7 +64,7 @@ app.post('/api/books', verifyToken, async (req, res) => {
 });
 
 // PUT (update) a book by ID
-app.put('/api/books/:id', verifyToken, async (req, res) => {
+app.put('/api/books/:id', authenticateToken, async (req, res) => {
   await db.read();
   const bookIndex = db.data.books.findIndex(b => b.id === req.params.id);
 
@@ -91,7 +91,7 @@ app.put('/api/books/:id', verifyToken, async (req, res) => {
 });
 
 // DELETE a book by ID
-app.delete('/api/books/:id', verifyToken, async (req, res) => {
+app.delete('/api/books/:id', authenticateToken, async (req, res) => {
   await db.read();
   const bookIndex = db.data.books.findIndex(b => b.id === req.params.id);
 

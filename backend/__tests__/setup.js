@@ -1,30 +1,54 @@
+import { jest } from '@jest/globals';
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
 import { db } from '../database.js';
 import { rm } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dbPath = join(__dirname, '..', 'db.json');
+const testDbPath = join(__dirname, 'test-db.json');
 
 // Set up test environment variables
 process.env.NODE_ENV = 'test';
 process.env.PORT = process.env.PORT || 3000;
 process.env.JWT_SECRET = 'test-secret-key';
 
-// Initialize test database
+// Initialize test database before all tests
 beforeAll(async () => {
-  // Ensure database is initialized with empty collections
-  db.data = { users: [], books: [] };
-  await db.write();
+  try {
+    const adapter = new JSONFile(testDbPath);
+    const testDb = new Low(adapter);
+    await testDb.read();
+    testDb.data = { users: [], books: [] };
+    await testDb.write();
+    
+    // Ensure the main db instance is using the test database
+    db.data = testDb.data;
+    await db.write();
+  } catch (error) {
+    console.error('Error initializing test database:', error);
+    throw error;
+  }
 });
 
-// Clean up after all tests
+// Clean up test database after all tests
 afterAll(async () => {
-  // Clean up database
   try {
-    await rm(dbPath);
+    await rm(testDbPath);
   } catch (error) {
-    // Ignore if file doesn't exist
+    console.error('Error cleaning up test database:', error);
+  }
+});
+
+// Reset database state before each test
+beforeEach(async () => {
+  try {
+    db.data = { users: [], books: [] };
+    await db.write();
+  } catch (error) {
+    console.error('Error resetting test database:', error);
+    throw error;
   }
 });
 
@@ -34,11 +58,19 @@ jest.setTimeout(10000);
 // Mock console.error to catch and display errors
 const originalError = console.error;
 console.error = (...args) => {
-  // Only log error in non-test environment
-  if (process.env.NODE_ENV !== 'test') {
-    originalError(...args);
-    console.log('Stack trace:', new Error().stack);
+  if (typeof args[0] === 'string' && args[0].includes('ExperimentalWarning')) {
+    return;
   }
+  originalError.call(console, ...args);
+};
+
+// Mock console.warn to suppress warnings
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  if (typeof args[0] === 'string' && args[0].includes('ExperimentalWarning')) {
+    return;
+  }
+  originalWarn.call(console, ...args);
 };
 
 // Silence console.log during tests unless explicitly needed

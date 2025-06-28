@@ -1,49 +1,44 @@
 import bcrypt from 'bcryptjs';
-import { nanoid } from 'nanoid';
 import { db } from '../database.js';
 
-export class User {
-    static async findByEmail(email) {
-        await db.read();
-        return db.data.users?.find(user => user.email === email);
+class User {
+  static async findByUsername(username) {
+    await db.read();
+    return db.data.users.find(user => user.username === username);
+  }
+
+  static async create(username, password) {
+    await db.read();
+    if (await this.findByUsername(username)) {
+      throw new Error('Username already exists');
     }
 
-    static async create({ email, password, name }) {
-        await db.read();
-        
-        // Initialize users array if it doesn't exist
-        if (!db.data.users) {
-            db.data.users = [];
-        }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = {
+      id: Date.now().toString(),
+      username,
+      password: hashedPassword,
+      books: []
+    };
 
-        // Check if user already exists
-        const existingUser = await this.findByEmail(email);
-        if (existingUser) {
-            throw new Error('User already exists');
-        }
+    db.data.users.push(user);
+    await db.write();
+    return user;
+  }
 
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+  static async validatePassword(user, password) {
+    return bcrypt.compare(password, user.password);
+  }
 
-        // Create new user
-        const user = {
-            id: nanoid(),
-            email,
-            password: hashedPassword,
-            name,
-            createdAt: new Date().toISOString()
-        };
-
-        db.data.users.push(user);
-        await db.write();
-
-        // Return user without password
-        const { password: _, ...userWithoutPassword } = user;
-        return userWithoutPassword;
+  static async deleteUser(userId) {
+    await db.read();
+    const userIndex = db.data.users.findIndex(user => user.id === userId);
+    if (userIndex === -1) {
+      throw new Error('User not found');
     }
+    db.data.users.splice(userIndex, 1);
+    await db.write();
+  }
+}
 
-    static async validatePassword(user, password) {
-        return bcrypt.compare(password, user.password);
-    }
-} 
+export default User; 

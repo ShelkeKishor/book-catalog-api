@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/user.js';
+import User from '../models/user.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -9,35 +10,21 @@ const router = express.Router();
  * @description Register a new user
  */
 router.post('/register', async (req, res) => {
-    try {
-        const { email, password, name } = req.body;
-
-        // Validate input
-        if (!email || !password || !name) {
-            return res.status(400).json({ message: 'Please provide all required fields' });
-        }
-
-        // Create user
-        const user = await User.create({ email, password, name });
-
-        // Generate token
-        const token = jwt.sign(
-            { id: user.id, email: user.email },
-            process.env.JWT_SECRET || 'test-secret-key',
-            { expiresIn: '24h' }
-        );
-
-        res.status(201).json({
-            message: 'User registered successfully',
-            user,
-            token
-        });
-    } catch (error) {
-        if (error.message === 'User already exists') {
-            return res.status(400).json({ message: error.message });
-        }
-        res.status(500).json({ message: 'Error registering user' });
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
+
+    const user = await User.create(username, password);
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.status(201).json({ token, user: { id: user.id, username: user.username } });
+  } catch (error) {
+    if (error.message === 'Username already exists') {
+      return res.status(409).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Error creating user' });
+  }
 });
 
 /**
@@ -45,43 +32,36 @@ router.post('/register', async (req, res) => {
  * @description Login user
  */
 router.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        // Validate input
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Please provide email and password' });
-        }
-
-        // Find user
-        const user = await User.findByEmail(email);
-        if (!user) {
-            return res.status(401).json({ message: 'Invalid email or password' });
-        }
-
-        // Validate password
-        const isValidPassword = await User.validatePassword(user, password);
-        if (!isValidPassword) {
-            return res.status(401).json({ message: 'Invalid email or password' });
-        }
-
-        // Generate token
-        const token = jwt.sign(
-            { id: user.id, email: user.email },
-            process.env.JWT_SECRET || 'test-secret-key',
-            { expiresIn: '24h' }
-        );
-
-        // Return user without password
-        const { password: _, ...userWithoutPassword } = user;
-        res.json({
-            message: 'Login successful',
-            user: userWithoutPassword,
-            token
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Error logging in' });
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
+
+    const user = await User.findByUsername(username);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const isValid = await User.validatePassword(user, password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token, user: { id: user.id, username: user.username } });
+  } catch (error) {
+    res.status(500).json({ error: 'Error during login' });
+  }
+});
+
+router.delete('/user', authenticateToken, async (req, res) => {
+  try {
+    await User.deleteUser(req.user.userId);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Error deleting user' });
+  }
 });
 
 export default router; 

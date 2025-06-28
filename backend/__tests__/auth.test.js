@@ -14,37 +14,37 @@ describe('Authentication Endpoints', () => {
       const res = await request(app)
         .post('/api/auth/register')
         .send({
-          name: 'Test User',
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123'
         });
-      
+
       expect(res.statusCode).toBe(201);
       expect(res.body).toHaveProperty('token');
-      expect(res.body).toHaveProperty('message', 'User registered successfully');
+      expect(res.body).toHaveProperty('user');
+      expect(res.body.user).toHaveProperty('id');
+      expect(res.body.user).toHaveProperty('username', 'testuser');
+      expect(res.body.user).not.toHaveProperty('password');
     });
 
-    it('should not register a user with existing email', async () => {
-      // First registration
+    it('should not register a user with existing username', async () => {
+      // Create first user
       await request(app)
         .post('/api/auth/register')
         .send({
-          name: 'Test User',
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123'
         });
 
-      // Try to register again with same email
+      // Try to create user with same username
       const res = await request(app)
         .post('/api/auth/register')
         .send({
-          name: 'Another User',
-          email: 'test@example.com',
-          password: 'password456'
+          username: 'testuser',
+          password: 'differentpassword'
         });
 
       expect(res.statusCode).toBe(400);
-      expect(res.body).toHaveProperty('message', 'User already exists');
+      expect(res.body).toHaveProperty('message', 'Username already exists');
     });
   });
 
@@ -54,8 +54,7 @@ describe('Authentication Endpoints', () => {
       await request(app)
         .post('/api/auth/register')
         .send({
-          name: 'Test User',
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123'
         });
     });
@@ -64,24 +63,40 @@ describe('Authentication Endpoints', () => {
       const res = await request(app)
         .post('/api/auth/login')
         .send({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123'
         });
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toHaveProperty('token');
+      expect(res.body).toHaveProperty('user');
+      expect(res.body.user).toHaveProperty('id');
+      expect(res.body.user).toHaveProperty('username', 'testuser');
+      expect(res.body.user).not.toHaveProperty('password');
     });
 
     it('should not login with invalid password', async () => {
       const res = await request(app)
         .post('/api/auth/login')
         .send({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'wrongpassword'
         });
 
       expect(res.statusCode).toBe(401);
-      expect(res.body).toHaveProperty('message', 'Invalid credentials');
+      expect(res.body).toHaveProperty('message', 'Invalid username or password');
+    });
+
+    it('should not login with non-existent username', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({
+          username: 'nonexistentuser',
+          password: 'password123'
+        });
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body).toHaveProperty('message', 'Invalid username or password');
     });
   });
 }); 
