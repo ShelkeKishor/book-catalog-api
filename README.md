@@ -4,7 +4,7 @@ A simple but elegant full-stack application for managing a book collection, buil
 
 ## Preview
 
-Book Catalog UI
+![Book Catalog UI](frontend/screenshot.png)
 
 ## Features
 
