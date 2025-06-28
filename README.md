@@ -275,3 +275,5 @@ All files |     100 |      100 |     100 |     100 |
 ## Author
 
 - **Kishor Shelke** - [Kishor018](https://github.com/Kishor018)
+#   T r i g g e r   C I / C D   p i p e l i n e  
+ 
