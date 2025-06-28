@@ -75,16 +75,35 @@ This command will run all tests and generate a coverage report in the `backend/c
 
 The application boasts excellent test coverage, ensuring reliability and robustness. The tests cover all API endpoints and business logic.
 
-**Coverage Summary:**
+**Coverage Summary (as of latest run):**
 
 * **Statements**: `94.87%`
 * **Branches**: `90.9%`
 * **Functions**: `87.5%`
 * **Lines**: `97.22%`
 
-Test Coverage Report
+To view the detailed HTML report, open the `backend/coverage/lcov-report/index.html` file in your browser after running the tests.
 
-_To view the detailed HTML report, open the `backend/coverage/lcov-report/index.html` file in your browser after running the tests._
+### Code Coverage Report
+
+![Code Coverage Report](assets/coverage-report.png)
+
+## Keploy API Test Automation
+
+All API endpoints are automatically tested using Keploy.
+
+- **Total Tests:** 31
+- **Passed:** 31
+- **Failed:** 0
+- **Status:** COMPLETED
+
+### Keploy Test Run Summary
+
+![Keploy Test Run Summary](assets/test1.png)
+
+### Example Keploy Test Suite Details
+
+![Keploy Test Suite Details](assets/test2.png)
 
 ## Preview
 
