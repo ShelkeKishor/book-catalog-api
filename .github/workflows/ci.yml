@@ -61,42 +61,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-results
-        path: backend/coverage/
-
-  deploy:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    environment: production
-
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: backend/package-lock.json
-
-    - name: Install Dependencies
-      working-directory: backend
-      run: npm ci
-
-    - name: Create production database
-      working-directory: backend
-      run: |
-        echo '{"books":[]}' > db.json
-        chmod 666 db.json
-    
-    - name: Deploy to Production
-      uses: akhileshns/heroku-deploy@v3.12.14
-      with:
-        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-        heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-        heroku_email: ${{ secrets.HEROKU_EMAIL }}
-        appdir: "backend"
-      env:
-        NODE_ENV: production
-        PORT: ${{ secrets.PORT }}
-        HD_APP_BASE: "backend" 
+        path: backend/coverage/ 
