@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -20,6 +20,8 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
 
     - name: Debug Info
       run: |
@@ -28,17 +30,27 @@ jobs:
         node --version
         npm --version
 
+    - name: Setup Test Environment
+      run: |
+        echo "Setting up test database..."
+        echo '{"books":[]}' > db.json
+        chmod 666 db.json
+        echo "Test database created successfully"
+
     - name: Install Dependencies
       run: |
-        rm -f package-lock.json
-        npm install
+        npm ci || {
+          echo "npm ci failed, falling back to npm install"
+          rm -f package-lock.json
+          npm install
+        }
 
     - name: Run Tests
       env:
         NODE_ENV: test
       run: |
         echo "Running tests..."
-        npm test || {
+        npm test -- --verbose || {
           echo "Test failed. Debug info:"
           cat npm-debug.log || true
           exit 1
@@ -51,62 +63,6 @@ jobs:
         name: test-results
         path: backend/coverage/
 
-  build-and-test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-
-    - name: Install Dependencies
-      run: |
-        npm install
-        npm install -g jest
-
-    - name: Create Database
-      run: |
-        echo '{"books":[]}' > db.json
-        sudo chown $USER:$USER db.json
-        sudo chmod 666 db.json
-        ls -la db.json
-
-    - name: Run Tests
-      run: |
-        NODE_ENV=test npm test
-
-    - name: Start Server
-      run: |
-        node index.js &
-        echo $! > server.pid
-        sleep 5
-
-    - name: Test API Endpoints
-      run: |
-        curl -v http://localhost:3000/api/books
-
-    - name: Cleanup
-      if: always()
-      run: |
-        if [ -f server.pid ]; then
-          kill $(cat server.pid) || true
-        fi
-
-    - name: Upload Test Results
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: test-results
-        path: |
-          backend/coverage/
-          backend/*.log
-
   deploy:
     needs: build-and-test
     runs-on: ubuntu-latest
@@ -114,10 +70,10 @@ jobs:
     environment: production
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
@@ -133,10 +89,10 @@ jobs:
         echo '{"books":[]}' > db.json
         chmod 666 db.json
     
-    - name: Deploy to Heroku
+    - name: Deploy to Production
       uses: akhileshns/heroku-deploy@v3.12.14
       with:
-        heroku_api_key: ${{ secrets.DEPLOY_TOKEN }}
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
         heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
         heroku_email: ${{ secrets.HEROKU_EMAIL }}
         appdir: "backend"
